@@ -1,5 +1,9 @@
 ## Hi there 👋
 
+My name is **Ali**, welcome to my profile ReadMe! 💤 💤
+![kazumaup](https://github.com/user-attachments/assets/9487e424-740d-46ed-9abb-21a7fd8813c6)
+
+
 <!--
 **Li11z/Li11z** is a ✨ _special_ ✨ repository because its `README.md` (this file) appears on your GitHub profile.
 
