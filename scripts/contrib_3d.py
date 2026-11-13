@@ -1,62 +1,75 @@
 """Animated 3D contribution graph for the profile README.
 
-Bar heights follow daily contributions from your real GitHub calendar. A snake
-travels the board row by row, front to back, eating each bar as it passes; then
-the board grows back and the loop repeats.
-
-The GitHub Action runs this with GITHUB_TOKEN set. Run it locally without a token
-to preview the animation with random demo data.
+Reads your public contribution calendar (the same one visitors see on your
+profile, including private counts if you've enabled them) for the current year.
+Bar heights follow daily contributions. A snake travels the board row by row,
+front to back, eating each bar as it passes; then the board grows back.
+No token needed: works the same on your PC and in the GitHub Action.
 """
-import json
+import datetime
 import math
 import os
-import random
+import re
 import urllib.request
 from pathlib import Path
 
 USER = os.environ.get("GH_USER", "Li11z")
-TOKEN = os.environ.get("GITHUB_TOKEN")
+YEAR = datetime.date.today().year
 
 # layout: CW = cell spacing, FOOT = bar width, DX/DY = screen shift per row of depth
 CW, FOOT, DX, DY, DFOOT, HMAX = 13.0, 10.5, 7.0, 8.0, 0.8, 46.0
 OX, MARGIN = 26.0, 14.0
 OY = MARGIN + HMAX + 7 * DY
-TOPS = ["#E6ECF2", "#C8F0DC", "#A3E4C9", "#8DD3E8", "#7FB8F0"]  # none -> most contributions
+TOPS = ["#E6ECF2", "#C8F0DC", "#A3E4C9", "#8DD3E8", "#7FB8F0"]  # GitHub levels 0-4
 STEP, LAG, REGROW, SEGMENTS = 0.07, 0.11, 1.6, 8              # seconds / count
 CARD, EDGE, INK = "#F8FAFC", "#E3E8EF", "#7A8699"
 FONT = "'Segoe UI', Helvetica, Arial, sans-serif"
 
-QUERY = """query($login: String!) {
-  user(login: $login) { contributionsCollection { contributionCalendar {
-    weeks { contributionDays { contributionCount weekday } } } } } }"""
 
-
-def fetch_weeks():
-    if not TOKEN:
-        print("No GITHUB_TOKEN set: using random demo data")
-        rnd = random.Random(1)
-        return [[(wd, rnd.choice([0, 0, 0, 1, 2, 3, 5, 8])) for wd in range(7)] for _ in range(53)]
-    body = json.dumps({"query": QUERY, "variables": {"login": USER}}).encode()
-    req = urllib.request.Request(
-        "https://api.github.com/graphql", data=body,
-        headers={"Authorization": f"bearer {TOKEN}", "Content-Type": "application/json",
-                 "User-Agent": "contrib-3d"})
+def fetch_days():
+    """Return [(date, count, level)] from the public contributions page."""
+    url = f"https://github.com/users/{USER}/contributions?from={YEAR}-01-01&to={YEAR}-12-31"
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (contrib-3d)"})
     with urllib.request.urlopen(req) as resp:
-        data = json.load(resp)
-    if "errors" in data:
-        raise SystemExit(f"GitHub API error: {data['errors']}")
-    weeks = data["data"]["user"]["contributionsCollection"]["contributionCalendar"]["weeks"]
-    return [[(d["weekday"], d["contributionCount"]) for d in w["contributionDays"]] for w in weeks]
+        html = resp.read().decode("utf-8")
+
+    # tooltips hold the counts: "3 contributions on May 2nd." / "No contributions on ..."
+    counts_by_id = {}
+    for cell_id, text in re.findall(r'<tool-tip[^>]*\bfor="([^"]+)"[^>]*>([^<]*)</tool-tip>', html):
+        m = re.match(r"\s*([\d,]+)\s+contribution", text)
+        counts_by_id[cell_id] = int(m.group(1).replace(",", "")) if m else 0
+
+    days = []
+    for tag in re.findall(r"<td\b[^>]*\bdata-date=[^>]*>", html):
+        date = datetime.date.fromisoformat(re.search(r'data-date="([^"]+)"', tag).group(1))
+        level_m = re.search(r'data-level="(\d)"', tag)
+        id_m = re.search(r'\bid="([^"]+)"', tag)
+        level = int(level_m.group(1)) if level_m else 0
+        count = counts_by_id.get(id_m.group(1), 0) if id_m else 0
+        if count == 0 and level > 0:      # tooltip missing: fall back to the colour level
+            count = level
+        days.append((date, count, level))
+    if not days:
+        raise SystemExit("Could not read the contribution calendar (page layout may have changed).")
+
+    header = re.search(r"([\d,]+)\s+contributions?\s+in\s+" + str(YEAR), html)
+    if header:
+        print(f"Profile shows {header.group(1)} contributions in {YEAR}")
+    return days
 
 
-weeks = fetch_weeks()
-NW = len(weeks)
-grid = {}  # (week, row) -> count; row 0 is the front row (Saturday), row 6 the back (Sunday)
-for w, days in enumerate(weeks):
-    for weekday, count in days:
-        grid[(w, 6 - weekday)] = count
-maxc = max(grid.values(), default=0) or 1
-total = sum(grid.values())
+days = fetch_days()
+start = min(d for d, _, _ in days)
+first_sunday = start - datetime.timedelta(days=(start.weekday() + 1) % 7)
+grid = {}  # (week, row) -> (count, level); row 0 = front (Saturday), row 6 = back (Sunday)
+for date, count, level in days:
+    week = (date - first_sunday).days // 7
+    weekday = (date.weekday() + 1) % 7     # Sunday = 0, like GitHub
+    grid[(week, 6 - weekday)] = (count, level)
+NW = max(w for w, _ in grid) + 1
+maxc = max((c for c, _ in grid.values()), default=0) or 1
+total = sum(c for c, _ in grid.values())
+print(f"Board has {total} contributions across {NW} weeks")
 
 
 def P(x, d, h=0.0):
@@ -75,10 +88,6 @@ def shade(hex_color, factor):
 
 def height(c):
     return 0.0 if c == 0 else 5 + (HMAX - 5) * math.log1p(c) / math.log1p(maxc)
-
-
-def level(c):
-    return 0 if c == 0 else min(4, math.ceil(4 * c / maxc))
 
 
 def faces(w, d, h):
@@ -122,8 +131,8 @@ for d in range(6, -1, -1):
     for w in range(NW):
         if (w, d) not in grid:
             continue
-        c = grid[(w, d)]
-        top = TOPS[level(c)]
+        c, lv = grid[(w, d)]
+        top = TOPS[min(lv, 4)]
         if c == 0:
             blocks.append(f'<polygon points="{fmt(faces(w, d, 0)["top"])}" fill="{top}"/>')
             continue
@@ -169,8 +178,8 @@ svg = (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W:.0f} {H:.0f}" '
        f'stroke="{EDGE}" stroke-width="2"/>'
        + slab + "".join(blocks) + snake_group
        + f'<text x="{OX}" y="{H - 9:.0f}" font-family="{FONT}" font-size="11" fill="{INK}">'
-         f'{total} contributions in the last year</text></svg>')
+         f'{total} contributions in {YEAR}</text></svg>')
 
 Path("dist").mkdir(exist_ok=True)
 Path("dist/contrib-3d.svg").write_text(svg, encoding="utf-8")
-print(f"wrote dist/contrib-3d.svg ({total} contributions, {NW} weeks)")
+print("wrote dist/contrib-3d.svg")

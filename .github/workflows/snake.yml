@@ -22,7 +22,6 @@ jobs:
       - name: Render the 3D contribution graph
         run: python3 scripts/contrib_3d.py
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_USER: ${{ github.repository_owner }}
 
       - name: Save it to assets
