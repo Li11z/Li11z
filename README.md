@@ -1,13 +1,11 @@
 <div align="center">
 
-<img width="100%" src="https://capsule-render.vercel.app/api?type=waving&color=0:A8E6CF,50:BDE0FE,100:FFC8DD&height=200&section=header&text=Ali%20Afoud&fontSize=56&fontColor=2B2D42&animation=fadeIn&fontAlignY=38&desc=Scientific%20ML%20%C2%B7%20Health%20and%20Biology%20%C2%B7%20Interpretability&descAlignY=58&descSize=17" alt="header" />
+<img width="100%" src="https://capsule-render.vercel.app/api?type=waving&color=0:A8E6CF,50:BDE0FE,100:FFC8DD&height=200&section=header&text=Ali%20Afoud&fontSize=56&fontColor=2B2D42&animation=fadeIn&fontAlignY=38&desc=Scientific%20ML%20%C2%B7%20Health%20and%20Biology%20%C2%B7%20Interpretability%20%C2%B7%20Game%20AI&descAlignY=58&descSize=17" alt="header" />
 
-<img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=500&size=20&pause=1200&color=5B9BD5&center=true&vCenter=true&width=620&lines=Hi%2C+I%27m+Ali;CS+%2B+Math+graduate%2C+UBC;Teaching+neural+networks+the+laws+of+physics;ML+and+DL+for+health+and+biology;Making+models+interpretable" alt="typing intro" />
+<img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=500&size=20&pause=1200&color=5B9BD5&center=true&vCenter=true&width=620&lines=Hi%2C+I%27m+Ali;CS+%2B+Math+graduate%2C+UBC;Teaching+neural+networks+the+laws+of+physics;ML+and+DL+for+health+and+biology;Building+game+AI+and+game+worlds" alt="typing intro" />
 
 [![arXiv](https://img.shields.io/badge/arXiv-Afoud%2C%20A-B31B1B?style=flat-square&logo=arxiv&logoColor=white)](https://arxiv.org/search/?searchtype=author&query=Afoud%2C+A)
 [![Email](https://img.shields.io/badge/Email-Afoudali%40hotmail.com-5BB5E0?style=flat-square&logo=microsoftoutlook&logoColor=white)](mailto:Afoudali@hotmail.com)
-![Location](https://img.shields.io/badge/Based%20in-Montreal%2C%20QC-5CC9A7?style=flat-square)
-![Profile views](https://komarev.com/ghpvc/?username=Li11z&color=7ec8e3&style=flat-square&label=Profile+views)
 
 </div>
 
@@ -18,69 +16,19 @@
 - Computer Science + Mathematics graduate, University of British Columbia (2026)
 - Interested in where machine learning meets mathematical modelling: physics-informed learning, neural differential equations and data-driven discovery of governing equations
 - Machine learning and deep learning for health and biology, and making models interpretable
-- Exploring quantum computing
+- Artificial behavior intelligence and behavioral game AI (decision-making systems, goal-oriented action planning, finite-state machines), plus game design and computer graphics
 - Building things from scratch in the open: an ML library (Python/C++) and a linear algebra library (C)
 - Languages: English, French, Arabic
+
+**Outside of code:** I love philosophy and zoology!
 
 <br clear="right"/>
 
 ## Research interests
 
-```mermaid
-flowchart LR
-    A(("Ali")) --> C["Scientific ML"]
-    A --> D["ML and DL for Health and Biology"]
-    A --> I["Interpretability"]
-    A --> Q["Quantum (exploring)"]
-    C --> C1["Physics-informed networks and neural operators"]
-    C --> C2["Neural ODEs and universal differential equations"]
-    C --> C3["Equation discovery: SINDy, symbolic regression"]
-    D --> D1["Epidemic and PDE models"]
-    D --> D2["Medical imaging and physiological signals"]
-    I --> I1["Attribution methods"]
-    I --> I2["Interpretable models for science"]
-    classDef root fill:#FFC8DD,stroke:#FFAFCC,color:#2B2D42
-    classDef area fill:#BDE0FE,stroke:#A2D2FF,color:#2B2D42
-    classDef leaf fill:#E8F8F0,stroke:#A8E6CF,color:#2B2D42
-    class A root
-    class C,D,I,Q area
-    class C1,C2,C3,D1,D2,I1,I2 leaf
-```
-
-<details>
-<summary><b>The math behind these interests</b></summary>
-
-**Physics-informed neural networks** (scientific ML). A network is trained to match measured data and, at the same time, is penalised wherever it breaks the physical law (the PDE) the system is known to obey.
-
-```math
-\mathcal{L}(\theta) = \frac{1}{N}\sum_{i=1}^{N}\big(u_\theta(x_i) - u_i\big)^2 + \lambda\,\frac{1}{M}\sum_{j=1}^{M}\big(\mathcal{N}[u_\theta](x_j)\big)^2
-```
-
-**Universal differential equations** (neural ODEs). Keep the physics you trust and let a neural network learn only the part you don't know. With no known part, this is a plain neural ODE.
-
-```math
-\frac{d\mathbf{h}}{dt} = f_{\text{known}}(\mathbf{h}) + \mathrm{NN}_\theta(\mathbf{h}, t)
-```
-
-**SINDy** (equation discovery). Build a library of candidate terms (x, y, xy, sin x, ...) and find the few that explain the data, so the result is a readable equation rather than a black box.
-
-```math
-\min_{\Xi}\; \big\lVert \dot{\mathbf{X}} - \Theta(\mathbf{X})\,\Xi \big\rVert_2^2 + \lambda \lVert \Xi \rVert_1
-```
-
-**SIR model** (health and biology). The starting point of my epidemic-waves work: susceptible, infected and recovered populations, with infection rate β and recovery rate γ.
-
-```math
-\frac{dS}{dt} = -\beta S I, \qquad \frac{dI}{dt} = \beta S I - \gamma I, \qquad \frac{dR}{dt} = \gamma I
-```
-
-**Integrated gradients** (interpretability). How much each input feature contributed to a model's prediction, measured along a path from a neutral baseline to the actual input.
-
-```math
-\mathrm{IG}_i(x) = (x_i - x_i') \int_0^1 \frac{\partial F\big(x' + \alpha (x - x')\big)}{\partial x_i}\, d\alpha
-```
-
-</details>
+<p align="center">
+  <img src="assets/interests.svg" width="100%" alt="Animated cards for scientific ML, ML and DL for health and biology, interpretability, artificial behavior intelligence, game AI and decision-making, and game design and computer graphics" />
+</p>
 
 ## Selected projects
 
@@ -160,7 +108,6 @@ flowchart LR
   <a href="https://github.com/patrick-kidger/diffrax" title="Differential equation solvers in JAX"><img src="https://img.shields.io/badge/JAX-Diffrax-5BB5E0?style=flat-square" /></a>
   <a href="https://github.com/dynamicslab/pysindy" title="Sparse identification of nonlinear dynamics"><img src="https://img.shields.io/badge/PySINDy-equation%20discovery-5CC9A7?style=flat-square" /></a>
   <a href="https://github.com/MilesCranmer/PySR" title="Symbolic regression"><img src="https://img.shields.io/badge/PySR-symbolic%20regression-FFB38A?style=flat-square" /></a>
-  <a href="https://github.com/Qiskit/qiskit" title="Quantum computing"><img src="https://img.shields.io/badge/Qiskit-quantum-FF85A8?style=flat-square&logo=qiskit&logoColor=white" /></a>
 </p>
 
 </td>
@@ -185,7 +132,7 @@ flowchart LR
 </tr>
 </table>
 
-</details>
+---
 
 <div align="center">
   <img src="https://github.com/user-attachments/assets/9487e424-740d-46ed-9abb-21a7fd8813c6" width="280" alt="kazumaup" />
