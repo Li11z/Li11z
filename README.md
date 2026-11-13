@@ -162,7 +162,7 @@ flowchart LR
 ## Contributions
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/Li11z/Li11z/output/contrib-3d.svg" width="100%" alt="3D contribution graph with a snake eating the bars" />
+  <img src="assets/contrib-3d.svg" width="100%" alt="3D contribution graph with a snake eating the bars" />
 </p>
 
 <details>

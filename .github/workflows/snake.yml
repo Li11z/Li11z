@@ -6,6 +6,8 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
+    paths-ignore:
+      - "assets/contrib-3d.svg"
 
 permissions:
   contents: write
@@ -23,9 +25,12 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_USER: ${{ github.repository_owner }}
 
-      - uses: crazy-max/ghaction-github-pages@v4
-        with:
-          target_branch: output
-          build_dir: dist
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Save it to assets
+        run: |
+          mkdir -p assets
+          cp dist/contrib-3d.svg assets/contrib-3d.svg
+          git config user.name "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          git add assets/contrib-3d.svg
+          git diff --cached --quiet || git commit -m "Update 3D contribution graph [skip ci]"
+          git push
