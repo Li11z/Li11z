@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Strange Attractor Grimoire</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #07040f; overflow: hidden; }
+  canvas { display: block; cursor: none; touch-action: none; }
+  #hud { position: fixed; top: 16px; left: 20px; color: #e8c872; font: 14px Georgia, serif;
+         pointer-events: none; text-shadow: 0 0 8px #000; }
+  #hud h1 { font-size: 20px; margin: 0 0 6px; letter-spacing: 3px; font-weight: normal; }
+  #eq { color: #c8b6ff; font: 12px "Courier New", monospace; white-space: pre; margin-top: 8px; }
+  #help { position: fixed; bottom: 14px; width: 100%; text-align: center; color: #9d8cc7;
+          font: 13px Georgia, serif; pointer-events: none; }
+  #banner { position: fixed; top: 42%; width: 100%; text-align: center; color: #e8c872;
+            font: 32px Georgia, serif; letter-spacing: 4px; opacity: 0; transition: opacity 0.6s;
+            pointer-events: none; text-shadow: 0 0 18px #b48cff; }
+  #back { position: fixed; top: 16px; right: 20px; color: #9d8cc7; font: 13px Georgia, serif; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hud">
+  <h1>STRANGE ATTRACTOR GRIMOIRE</h1>
+  <div>Chapter <span id="lvl">1</span>: <span id="name"></span> &middot; Runes <span id="score">0</span>/<span id="goal">5</span></div>
+  <div id="eq"></div>
+</div>
+<div id="banner"></div>
+<div id="help">move to disturb the flow &middot; drag to rotate &middot; click to cast &middot; collect the runes &middot; space to skip a chapter</div>
+<a id="back" href="https://github.com/Li11z">back to profile</a>
+<script>
+const cv = document.getElementById('c');
+const ctx = cv.getContext('2d');
+const $ = id => document.getElementById(id);
+let W = 0, H = 0, R = 0, stars = [];
+
+function resize() {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth; H = window.innerHeight; R = Math.min(W, H) * 0.36;
+  cv.width = W * dpr; cv.height = H * dpr;
+  cv.style.width = W + 'px'; cv.style.height = H + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = '#07040f'; ctx.fillRect(0, 0, W, H);
+  stars = Array.from({ length: 160 }, () => ({
+    x: Math.random() * W, y: Math.random() * H, r: Math.random() * 1.1 + 0.3, ph: Math.random() * 6.28 }));
+}
+window.addEventListener('resize', resize);
+resize();
+
+// Each chapter is a different strange attractor: c = visual centre, s = scale to unit size.
+const ATTRACTORS = [
+  { name: 'Lorenz', dt: 0.004, c: [0, 0, 25], s: 1 / 26,
+    eq: 'dx/dt = 10(y - x)\ndy/dt = x(28 - z) - y\ndz/dt = xy - (8/3)z',
+    f: (x, y, z) => [10 * (y - x), x * (28 - z) - y, x * y - (8 / 3) * z],
+    seed: () => [1, 1, 1] },
+  { name: 'Aizawa', dt: 0.008, c: [0, 0, 0.6], s: 1 / 1.6,
+    eq: 'dx/dt = (z - 0.7)x - 3.5y\ndy/dt = 3.5x + (z - 0.7)y\ndz/dt = 0.6 + 0.95z - z³/3 - (x² + y²)(1 + 0.25z) + 0.1zx³',
+    f: (x, y, z) => { const r = x * x + y * y;
+      return [(z - 0.7) * x - 3.5 * y, 3.5 * x + (z - 0.7) * y,
+              0.6 + 0.95 * z - z * z * z / 3 - r * (1 + 0.25 * z) + 0.1 * z * x * x * x]; },
+    seed: () => [0.1, 0, 0] },
+  { name: 'Thomas', dt: 0.04, c: [0, 0, 0], s: 1 / 4.5,
+    eq: 'dx/dt = sin y - 0.208x\ndy/dt = sin z - 0.208y\ndz/dt = sin x - 0.208z',
+    f: (x, y, z) => { const b = 0.208186; return [Math.sin(y) - b * x, Math.sin(z) - b * y, Math.sin(x) - b * z]; },
+    seed: () => [1.1, 1.1, -0.01] },
+  { name: 'Halvorsen', dt: 0.004, c: [-2, -2, -2], s: 1 / 10,
+    eq: 'dx/dt = -1.89x - 4y - 4z - y²\ndy/dt = -1.89y - 4z - 4x - z²\ndz/dt = -1.89z - 4x - 4y - x²',
+    f: (x, y, z) => { const a = 1.89;
+      return [-a * x - 4 * y - 4 * z - y * y, -a * y - 4 * z - 4 * x - z * z, -a * z - 4 * x - 4 * y - x * x]; },
+    seed: () => [-1.48, -1.51, 2.04] },
+  { name: 'Rössler', dt: 0.012, c: [0, 0, 6], s: 1 / 15,
+    eq: 'dx/dt = -y - z\ndy/dt = x + 0.2y\ndz/dt = 0.2 + z(x - 5.7)',
+    f: (x, y, z) => [-y - z, x + 0.2 * y, 0.2 + z * (x - 5.7)],
+    seed: () => [1, 1, 0] },
+];
+
+const N = 2600, GOAL = 5;
+const P = new Float32Array(N * 3);
+const SX = new Float32Array(N), SY = new Float32Array(N), SD = new Float32Array(N);
+const HEAT = new Float32Array(N);
+let level = 0, A = ATTRACTORS[0], score = 0, yaw = 0.6, pitch = 0.3;
+const runes = [], effects = [];
+
+function rk2(i, dt) {
+  const j = i * 3, x = P[j], y = P[j + 1], z = P[j + 2];
+  const a = A.f(x, y, z);
+  const b = A.f(x + a[0] * dt * 0.5, y + a[1] * dt * 0.5, z + a[2] * dt * 0.5);
+  let nx = x + b[0] * dt, ny = y + b[1] * dt, nz = z + b[2] * dt;
+  if (!isFinite(nx + ny + nz) || Math.abs(nx) + Math.abs(ny) + Math.abs(nz) > 1e4) {
+    const k = ((Math.random() * N) | 0) * 3;   // respawn a runaway particle on the attractor
+    nx = P[k] + (Math.random() - 0.5) * 0.01 / A.s; ny = P[k + 1]; nz = P[k + 2];
+  }
+  P[j] = nx; P[j + 1] = ny; P[j + 2] = nz;
+}
+
+function seedAll() {
+  const s = A.seed();
+  P[0] = s[0]; P[1] = s[1]; P[2] = s[2];
+  for (let k = 0; k < 3000; k++) rk2(0, A.dt);          // settle onto the attractor
+  for (let i = 1; i < N; i++) {                          // spread particles along one orbit
+    P[i * 3] = P[i * 3 - 3]; P[i * 3 + 1] = P[i * 3 - 2]; P[i * 3 + 2] = P[i * 3 - 1];
+    for (let k = 0; k < 4; k++) rk2(i, A.dt);
+  }
+  HEAT.fill(0);
+}
+
+function projectAll() {
+  const cy = Math.cos(yaw), sy = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch);
+  const [c0, c1, c2] = A.c, s = A.s;
+  for (let i = 0; i < N; i++) {
+    const j = i * 3;
+    const X = (P[j] - c0) * s, Y = (P[j + 1] - c1) * s, Z = (P[j + 2] - c2) * s;
+    const x1 = X * cy - Y * sy, d1 = X * sy + Y * cy;
+    const u = Z * cp - d1 * sp, d = Z * sp + d1 * cp;
+    const k = R / Math.max(0.35, 1 + 0.3 * d);
+    SX[i] = W / 2 + x1 * k; SY[i] = H / 2 - u * k; SD[i] = d;
+  }
+}
+
+// ---- input ----
+const mouse = { x: -1e4, y: -1e4, px: -1e4, py: -1e4, down: false, drag: false, lx: 0, ly: 0 };
+cv.addEventListener('pointerdown', e => {
+  mouse.down = true; mouse.drag = false; mouse.lx = e.clientX; mouse.ly = e.clientY;
+  cv.setPointerCapture(e.pointerId);
+});
+cv.addEventListener('pointermove', e => {
+  mouse.x = e.clientX; mouse.y = e.clientY;
+  if (!mouse.down) return;
+  const dx = e.clientX - mouse.lx, dy = e.clientY - mouse.ly;
+  if (Math.abs(dx) + Math.abs(dy) > 4) mouse.drag = true;
+  if (mouse.drag) {
+    yaw += dx * 0.008; pitch = Math.max(-1.4, Math.min(1.4, pitch + dy * 0.008));
+    mouse.lx = e.clientX; mouse.ly = e.clientY;
+  }
+});
+cv.addEventListener('pointerup', e => {
+  if (!mouse.drag) cast(e.clientX, e.clientY);
+  mouse.down = false; mouse.drag = false;
+});
+cv.addEventListener('pointerleave', () => { if (!mouse.down) { mouse.x = mouse.y = -1e4; } });
+window.addEventListener('keydown', e => { if (e.code === 'Space') { e.preventDefault(); nextChapter(); } });
+
+function kickNear(x, y, radius, strength) {
+  const r2 = radius * radius;
+  for (let i = 0; i < N; i++) {
+    const dx = SX[i] - x, dy = SY[i] - y;
+    if (dx * dx + dy * dy < r2) {
+      const j = i * 3;
+      P[j] += (Math.random() - 0.5) * strength;
+      P[j + 1] += (Math.random() - 0.5) * strength;
+      P[j + 2] += (Math.random() - 0.5) * strength;
+      HEAT[i] = 1;
+    }
+  }
+}
+
+function disturb() {
+  const speed = Math.hypot(mouse.x - mouse.px, mouse.y - mouse.py);
+  mouse.px = mouse.x; mouse.py = mouse.y;
+  if (mouse.drag || speed < 0.5 || speed > 300) return;
+  kickNear(mouse.x, mouse.y, 70, (0.02 / A.s) * Math.min(speed, 25) / 25);
+}
+
+function cast(x, y) {
+  effects.push({ x, y, t: 0, gold: false });
+  kickNear(x, y, 150, 0.15 / A.s);
+  for (let k = 0; k < runes.length; k++) {
+    const r = runes[k];
+    if (Math.hypot(SX[r.i] - x, SY[r.i] - y) < 40 && collect(k)) return;
+  }
+}
+
+// ---- runes: invented glyphs riding on particles ----
+const GLYPHS = Array.from({ length: 8 }, (_, g) => {
+  const pts = [];
+  for (let gx = 0; gx < 3; gx++) for (let gy = 0; gy < 4; gy++) pts.push([gx * 5 - 5, gy * 5 - 7.5]);
+  let seed = g * 9301 + 49297;
+  const rnd = () => { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
+  return Array.from({ length: 3 }, () => [pts[(rnd() * 12) | 0], pts[(rnd() * 12) | 0]]);
+});
+const newRune = () => ({ i: (Math.random() * N) | 0, g: (Math.random() * GLYPHS.length) | 0 });
+
+function collect(k) {
+  const r = runes[k];
+  effects.push({ x: SX[r.i], y: SY[r.i], t: 0, gold: true });
+  score++;
+  if (score >= GOAL) { nextChapter(); return true; }
+  runes[k] = newRune(); updateHud();
+  return false;
+}
+
+function drawRune(x, y, g, t) {
+  ctx.save(); ctx.translate(x, y); ctx.rotate(t * 0.0015);
+  ctx.strokeStyle = '#e8c872'; ctx.lineWidth = 1.6; ctx.shadowColor = '#e8c872'; ctx.shadowBlur = 12;
+  ctx.beginPath(); ctx.arc(0, 0, 14, 0, Math.PI * 2); ctx.stroke();
+  ctx.beginPath();
+  for (const [a, b] of GLYPHS[g]) { ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); }
+  ctx.stroke(); ctx.restore();
+}
+
+function updateRunes(t) {
+  for (let k = 0; k < runes.length; k++) {
+    const r = runes[k], x = SX[r.i], y = SY[r.i];
+    if (!mouse.drag && Math.hypot(x - mouse.x, y - mouse.y) < 28) { if (collect(k)) return; continue; }
+    drawRune(x, y, r.g, t);
+  }
+}
+
+// ---- chapters and HUD ----
+let bannerTimer;
+function showBanner(text) {
+  const b = $('banner'); b.textContent = text; b.style.opacity = 1;
+  clearTimeout(bannerTimer); bannerTimer = setTimeout(() => { b.style.opacity = 0; }, 1800);
+}
+function updateHud() {
+  $('lvl').textContent = level + 1; $('name').textContent = A.name;
+  $('score').textContent = score; $('goal').textContent = GOAL; $('eq').textContent = A.eq;
+}
+function nextChapter() {
+  level = (level + 1) % ATTRACTORS.length; A = ATTRACTORS[level]; score = 0;
+  seedAll(); runes.length = 0; for (let k = 0; k < 3; k++) runes.push(newRune());
+  ctx.fillStyle = '#07040f'; ctx.fillRect(0, 0, W, H);
+  updateHud();
+  showBanner(level === 0 ? 'The grimoire begins anew' : 'Chapter ' + (level + 1) + ': ' + A.name);
+}
+
+// ---- drawing ----
+const PALETTE = ['rgba(94,58,158,0.55)', 'rgba(155,123,255,0.65)', 'rgba(205,180,255,0.75)', 'rgba(232,200,114,0.85)'];
+
+function drawStars(t) {
+  for (const s of stars) {
+    ctx.fillStyle = 'rgba(217,204,255,' + (0.15 + 0.6 * Math.abs(Math.sin(t * 0.001 + s.ph))) + ')';
+    ctx.fillRect(s.x, s.y, s.r, s.r);
+  }
+}
+
+function drawParticles() {
+  ctx.globalCompositeOperation = 'lighter';
+  for (let b = 0; b < 4; b++) {                 // colour by depth: far violet, near gold
+    ctx.fillStyle = PALETTE[b]; ctx.beginPath();
+    for (let i = 0; i < N; i++) {
+      if (HEAT[i] > 0.05) continue;
+      const d = SD[i], bucket = d > 0.4 ? 0 : d > 0 ? 1 : d > -0.4 ? 2 : 3;
+      if (bucket === b) ctx.rect(SX[i] - 0.8, SY[i] - 0.8, 1.6, 1.6);
+    }
+    ctx.fill();
+  }
+  ctx.fillStyle = 'rgba(255,240,200,0.95)'; ctx.beginPath();   // disturbed particles glow white
+  for (let i = 0; i < N; i++) {
+    if (HEAT[i] > 0.05) { ctx.rect(SX[i] - 1.2, SY[i] - 1.2, 2.4, 2.4); HEAT[i] *= 0.985; }
+  }
+  ctx.fill();
+  ctx.globalCompositeOperation = 'source-over';
+}
+
+function drawEffects() {
+  for (let k = effects.length - 1; k >= 0; k--) {
+    const e = effects[k]; e.t++;
+    const a = 1 - e.t / 45;
+    if (a <= 0) { effects.splice(k, 1); continue; }
+    ctx.strokeStyle = e.gold ? 'rgba(232,200,114,' + a + ')' : 'rgba(180,140,255,' + a + ')';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(e.x, e.y, e.t * (e.gold ? 2 : 3.5), 0, Math.PI * 2); ctx.stroke();
+  }
+}
+
+function drawCursor(t) {
+  if (mouse.x < -1000) return;
+  ctx.save(); ctx.translate(mouse.x, mouse.y);
+  ctx.strokeStyle = 'rgba(180,140,255,0.9)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.arc(0, 0, 22, 0, Math.PI * 2); ctx.stroke();
+  ctx.rotate(t * 0.002);
+  ctx.setLineDash([3, 5]); ctx.beginPath(); ctx.arc(0, 0, 30, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
+  ctx.beginPath();
+  for (let k = 0; k < 3; k++) {
+    const a = k * 2 * Math.PI / 3 - Math.PI / 2;
+    k ? ctx.lineTo(Math.cos(a) * 16, Math.sin(a) * 16) : ctx.moveTo(Math.cos(a) * 16, Math.sin(a) * 16);
+  }
+  ctx.closePath(); ctx.stroke(); ctx.restore();
+}
+
+function frame(t) {
+  ctx.fillStyle = 'rgba(7,4,15,0.2)'; ctx.fillRect(0, 0, W, H);   // fade leaves glowing trails
+  drawStars(t);
+  if (!mouse.down) yaw += 0.0012;
+  for (let s = 0; s < 2; s++) for (let i = 0; i < N; i++) rk2(i, A.dt);
+  projectAll();
+  disturb();
+  drawParticles();
+  updateRunes(t);
+  drawEffects();
+  drawCursor(t);
+  requestAnimationFrame(frame);
+}
+
+seedAll();
+for (let k = 0; k < 3; k++) runes.push(newRune());
+updateHud();
+showBanner('Chapter 1: Lorenz');
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
