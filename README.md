@@ -106,6 +106,10 @@ flowchart LR
 
 </details>
 
+<table>
+<tr>
+<td width="50%" valign="top">
+
 ## Tech stack
 
 <p align="center">
@@ -159,6 +163,9 @@ flowchart LR
   <a href="https://github.com/Qiskit/qiskit" title="Quantum computing"><img src="https://img.shields.io/badge/Qiskit-quantum-FF85A8?style=flat-square&logo=qiskit&logoColor=white" /></a>
 </p>
 
+</td>
+<td width="50%" valign="top">
+
 ## Contributions
 
 <p align="center">
@@ -171,6 +178,12 @@ flowchart LR
 
 - J. Wu, A. P. Herlihy, A. S. Mirza, **A. Afoud**, F. Fard. *GrowthHacker.* ACM TOSEM, 2026. [DOI](https://doi.org/10.1145/3815588)
 - **A. Afoud**, J. Wu. *VReAct.* JAWs @ IEEE/ACM ASE 2026. [arXiv](https://arxiv.org/abs/2609.31937)
+
+</details>
+
+</td>
+</tr>
+</table>
 
 </details>
 
